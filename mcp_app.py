@@ -1,14 +1,18 @@
 import streamlit as st
 import re
 import google.generativeai as genai
-from tools import get_weather
+from tools import get_weather, get_exchange_rate
 from build_prompt import build_mcp_prompt
 
 
 
 #model context
 system = "You are a helpful assistant that can answer questions and use tools when necessary."
-tools = "get_weather(city): Gets weather using wttr.in. Call only when the query is about weather."
+tools = (
+        "get_weather(city): Gets weather using wttr.in. Call only when the query is about weather.\n"
+        "get_exchange_rate(from_currency, to_currency): Gets exchange rate using frankfurter-app. Call only when the query is about exchange rates.\n"
+        "get_jokes(category='Any', allow_vulgar=True): Gets sarcastic or vulgar jokes. Call only when the query is about jokes or humor.\n"
+)
 
 #session memory
 if "memory" not in st.session_state:
@@ -16,7 +20,7 @@ if "memory" not in st.session_state:
 
 st.set_page_config(page_title = "MCP Gemini Assistant", page_icon = "🌤️")
 st.title("🌤️ MCP Gemini Assistant")
-st.write("Ask anything -- especially about the weather")
+st.write("Ask anything -- especially about the weather and currency exchnange rates. I can use tools to help you with that.")
 
 
 #sidebar
@@ -68,16 +72,32 @@ user_input = st.text_input("Enter your prompt:","")
 
 
 def handle_tool_call(response):
-    pattern = r"```tool_code\s*\nget_weather\(city=['\"](.*?)['\"]\)\s*```"
+    weather_pattern = r"```tool_code\s*\nget_weather\(city=['\"](.*?)['\"]\)\s*```"
+    exchange_pattern = r"```tool_code\s*\nget_exchange_rate\(from_currency=['\"](.*?)['\"],\s*to_currency=['\"](.*?)['\"]\)\s*```"
 
-    match = re.search(pattern, response, re.DOTALL)
-
-    if match:
-        city = match.group(1).strip()
+    weather_match = re.search(weather_pattern, response, re.DOTALL)
+    result = []
+    if weather_match:
+        city = weather_match.group(1).strip()
         st.info(f"[Tool] call detected for city: {city}")
-        return get_weather(city)
+        result.append(get_weather(city))
+    
+    exchange_match = re.search(exchange_pattern, response, re.DOTALL)
+
+    if exchange_match:
+        from_currency = exchange_match.group(1).strip()
+        to_currency = exchange_match.group(2).strip()
+        st.info(f"[Tool] Getting exchange rate: {from_currency} to {to_currency}")
+        result.append(get_exchange_rate(from_currency, to_currency))
+    
+    if result:
+        return "\n".join(result)
     
     return None 
+
+
+
+
 
 if user_input:
     prompt = build_mcp_prompt(system, tools, user_input,st.session_state.memory)
@@ -88,7 +108,7 @@ if user_input:
         followup_prompt = (
             f"enter your prompt: {user_input}\n"
             f"tool_output: {tool_output}\n"
-            f"respnd to the user naturally using this result\n"
+            f"respond to the user naturally using this result\n"
         )   
 
         final_response = model.generate_content(followup_prompt).text

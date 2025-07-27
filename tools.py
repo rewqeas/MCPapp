@@ -14,7 +14,7 @@ def get_weather(city = "kathmandu"):
 
 def get_exchange_rate(from_currency = 'USD', to_currency = 'EUR'):
     try:
-        url = f"https://api.frankfurter-app/latest?from={from_currency}&to={to_currency}"
+        url = f"https://api.frankfurter.app/latest?from={from_currency}&to={to_currency}"
         res = requests.get(url)
 
         if res.status_code == 200:
@@ -29,6 +29,12 @@ def get_exchange_rate(from_currency = 'USD', to_currency = 'EUR'):
             
         else:
             return f"Exchange rate API error." 
+        
+
+
 
     except Exception as e:
         return f"Exchange rate tool error: {str(e)}" 
+    
+
+
